@@ -6,6 +6,14 @@ import { parseByRules, type Parsed } from "./parse.ts";
 // Функция вызывается по адресу /functions/v1/api/..., поэтому префикс «/api»
 const app = new Hono().basePath("/api");
 
+app.use("*", async (c, next) => {
+  const t = Date.now();
+  await next();
+  console.log(JSON.stringify({
+    method: c.req.method, path: c.req.path, status: c.res.status, ms: Date.now() - t,
+  }));
+});
+
 const PROFILES = ["DEFAULT", "WITH_STROLLER", "WITH_DOG", "ELDERLY", "DISABLED"];
 
 //общие функции
@@ -157,6 +165,13 @@ app.post("/v1/search/parse", async (c) => {
     source: "rules",
     fallback: nothingFound,  // true: запрос не распознан, клиент показывает обычный поиск
   });
+});
+
+app.notFound((c) => apiError(c, 404, "NOT_FOUND", "Маршрут не найден"));
+
+app.onError((err, c) => {
+  console.log(JSON.stringify({ fn: "api", error: String(err) }));
+  return apiError(c, 500, "INTERNAL_ERROR", "Внутренняя ошибка сервера");
 });
 
 Deno.serve(app.fetch);
