@@ -1,0 +1,375 @@
+{
+  "info": {
+    "name": "ComfortMap Complete Test Suite",
+    "_postman_id": "8f2a1b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+    "description": "Полный набор интеграционных тестов API Комфорт-карта",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "host", "value": "https://drwpdqxrcqzdlhchdzsk.supabase.co" },
+    { "key": "anon", "value": "" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "01. Auth",
+      "item": [
+        {
+          "name": "01. Signup (Auto-token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Статус 200, токен получен', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('access_token');",
+                  "  pm.collectionVariables.set('token', json.access_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "apikey", "value": "{{anon}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": {\n    \"device_id\": \"{{$randomUUID}}\"\n  }\n}"
+            },
+            "url": "{{host}}/auth/v1/signup"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02. Health & Points",
+      "item": [
+        {
+          "name": "01. Health Check (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Сервис живой (200)', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().status).to.eql('ok');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{host}}/functions/v1/api/v1/health"
+          }
+        },
+        {
+          "name": "02. Get Nearby Points (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Точки найдены в радиусе', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(Array.isArray(data)).to.be.true;",
+                  "  pm.expect(data.length).to.be.above(0);",
+                  "  pm.expect(data[0]).to.have.all.keys('id', 'type', 'name', 'lat', 'lng', 'distance_m', 'last_verified_at');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{host}}/functions/v1/api/v1/points?lat=59.9265&lng=30.3616&radius=1000",
+              "host": ["{{host}}"],
+              "path": ["functions", "v1", "api", "v1", "points"],
+              "query": [
+                { "key": "lat", "value": "59.9265" },
+                { "key": "lng", "value": "30.3616" },
+                { "key": "radius", "value": "1000" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "03. User Profile",
+      "item": [
+        {
+          "name": "01. Get Profile with Token (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Профиль получен успешно', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json).to.have.property('id');",
+                  "  pm.expect(json).to.have.property('role', 'USER');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{host}}/functions/v1/api/v1/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04. Search NLU",
+      "item": [
+        {
+          "name": "01. Parse Toilet Query (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Текст успешно распознан', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.type).to.eql('TOILET');",
+                  "  pm.expect(json.attributes).to.include('BABY_CHANGING');",
+                  "  pm.expect(json.radius_m).to.eql(300);",
+                  "  pm.expect(json.fallback).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"туалет с пеленальным рядом с парком\"\n}"
+            },
+            "url": "{{host}}/functions/v1/api/v1/search/parse"
+          }
+        },
+        {
+          "name": "02. Parse Meaningless Query Fallback (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Переход в fallback режим', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.type).to.be.null;",
+                  "  pm.expect(json.fallback).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"привет как дела\"\n}"
+            },
+            "url": "{{host}}/functions/v1/api/v1/search/parse"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05. Validation & Errors",
+      "item": [
+        {
+          "name": "01. Missing Lat (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400 при отсутствии lat', () => pm.response.to.have.status(400));",
+                  "pm.test('Формат ошибки RFC 7807', () => {",
+                  "  pm.expect(pm.response.json().error).to.have.all.keys('code', 'message', 'details', 'request_id', 'timestamp');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{host}}/functions/v1/api/v1/points"
+          }
+        },
+        {
+          "name": "02. Radius Empty (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400 при пустом радиусе', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{host}}/functions/v1/api/v1/points?lat=59.9&lng=30.3&radius="
+          }
+        },
+        {
+          "name": "03. Radius Too Large (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('422 при radius > 5000', () => {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('RADIUS_TOO_LARGE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{host}}/functions/v1/api/v1/points?lat=59.9&lng=30.3&radius=8000"
+          }
+        },
+        {
+          "name": "04. Me Unauthorized (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 без токена', () => {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('AUTH_TOKEN_MISSING');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{host}}/functions/v1/api/v1/me"
+          }
+        },
+        {
+          "name": "05. Search Empty Text (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400 на пустой текст', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"\"\n}"
+            },
+            "url": "{{host}}/functions/v1/api/v1/search/parse"
+          }
+        },
+        {
+          "name": "06. Route Not Found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('404 на несуществующий маршрут', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{host}}/functions/v1/api/v1/nope"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06. RLS & Security",
+      "item": [
+        {
+          "name": "01. Public Points Read (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Публичное чтение точек доступно', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon}}" }
+            ],
+            "url": "{{host}}/rest/v1/points?select=name"
+          }
+        },
+        {
+          "name": "02. Deny llm_usage table (401/403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Доступ к llm_usage запрещен политиками RLS', () => {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([401, 403]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "apikey", "value": "{{anon}}" }
+            ],
+            "url": "{{host}}/rest/v1/llm_usage"
+          }
+        }
+      ]
+    }
+  ]
+}
