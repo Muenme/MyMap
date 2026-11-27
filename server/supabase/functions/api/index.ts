@@ -91,8 +91,12 @@ app.get("/v1/points", async (c) => {
   const { data, error } = await supabase.rpc("nearby_points", {
     p_lat: lat, p_lng: lng, p_radius_m: Math.round(radius),
   });
-  if (error) return apiError(c, 500, "INTERNAL_ERROR", error.message);
-
+  if (error) {
+    if (error.code === "PGRST301" || /jwt/i.test(error.message)) {
+      return apiError(c, 401, "AUTH_TOKEN_INVALID", "Токен недействителен или истёк");
+    }
+    return apiError(c, 500, "INTERNAL_ERROR", error.message);
+  }
   // Приводим поля к формату спецификации
   const items = (data ?? []).map((r: any) => ({
     id: r.point_id,
